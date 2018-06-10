@@ -3,12 +3,13 @@ package provisioner
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+
 	"github.com/golang/glog"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/nmaupu/freenas-provisioner/freenas"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
-	"path/filepath"
 )
 
 var (
@@ -41,19 +42,24 @@ func (p *freenasProvisioner) Provision(options controller.VolumeOptions) (*v1.Pe
 	path := filepath.Join(p.getMountpoint(), options.PVName)
 	glog.Infof("Provisioning %s", path)
 
+	meta := options.PVC.GetObjectMeta()
+	comments := fmt.Sprintf("%s/%s/%s", meta.GetClusterName(), meta.GetNamespace(), meta.GetName())
+
 	ds := freenas.Dataset{
-		Pool: p.Pool,
-		Name: filepath.Join(p.ParentDataset, options.PVName),
+		Pool:     p.Pool,
+		Name:     filepath.Join(p.ParentDataset, options.PVName),
+		Comments: comments,
 	}
 
 	share := freenas.NfsShare{
-		Paths:       []string{path},
-		ReadOnly:    false,
-		Alldirs:     true,
-		Hosts:       "knode1 knode2 knode3",
+		Paths:    []string{path},
+		ReadOnly: false,
+		Alldirs:  true,
+		// Hosts:       "knode1 knode2 knode3",
 		MapallUser:  "root",
 		MapallGroup: "wheel",
 		Comment:     "Created from freenas-provisioner",
+		Security:    []string{"sys"},
 	}
 
 	// Provisioning dataset and nfs share
@@ -98,6 +104,8 @@ func (p *freenasProvisioner) Delete(volume *v1.PersistentVolume) error {
 	path := volume.Spec.PersistentVolumeSource.NFS.Path
 	pvName := filepath.Base(path)
 
+	glog.Infof("Volume: %+v\n", volume)
+
 	share := freenas.NfsShare{
 		Paths: []string{path},
 	}
@@ -119,11 +127,11 @@ func (p *freenasProvisioner) Delete(volume *v1.PersistentVolume) error {
 
 	err = ds.Get(p.FreenasServer)
 	if err != nil {
-		glog.Warningf(fmt.Sprintf("Could not find dataset %s on server side, already deleted ?", ds))
+		glog.Warningf(fmt.Sprintf("Could not find dataset %v on server side, already deleted ?", ds))
 	} else {
 		err = ds.Delete(p.FreenasServer)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Cannot delete dataset %s. Error: %v", ds, err))
+			return errors.New(fmt.Sprintf("Cannot delete dataset %v. Error: %v", ds, err))
 		}
 	}
 

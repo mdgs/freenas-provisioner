@@ -3,6 +3,11 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
+	"syscall"
+	"time"
+
 	"github.com/golang/glog"
 	"github.com/jawher/mow.cli"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
@@ -11,10 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"os"
-	"path/filepath"
-	"syscall"
-	"time"
 )
 
 const (
@@ -30,6 +31,7 @@ const (
 var (
 	// cli parameters
 	identifier                      *string
+	protocol                        *string
 	host                            *string
 	port                            *int
 	username, password              *string
@@ -49,6 +51,11 @@ func Process(appName, appDesc, appVersion string) {
 		Name:   "i identifier",
 		Desc:   "Provisioner identifier (e.g. if unsure set it to current node name)",
 		EnvVar: "IDENTIFIER",
+	})
+	protocol = app.String(cli.StringOpt{
+		Name:   "P protocol",
+		Desc:   "Freenas protocol (http|https)",
+		EnvVar: "FREENAS_PROTOCOL",
 	})
 	host = app.String(cli.StringOpt{
 		Name:   "h host",
@@ -72,7 +79,13 @@ func Process(appName, appDesc, appVersion string) {
 		Desc:   "Freenas password for the API connection",
 		EnvVar: "FREENAS_PASSWORD",
 	})
-	insecure = app.BoolOpt("insecure", false, "Skip SSL check for Freenas API communications (self-signed certificate)")
+
+	insecure = app.Bool(cli.BoolOpt{
+		Name:   "x insecure",
+		Value:  false,
+		Desc:   "Skip SSL check for Freenas API communications (self-signed certificate)",
+		EnvVar: "FREENAS_INSECURE",
+	})
 
 	pool = app.String(cli.StringOpt{
 		Name:   "pool",
@@ -122,7 +135,7 @@ func execute() {
 
 	/* Everything's good so far, ready to start */
 	glog.Infoln("Starting freenas-provisioner with the following parameters:")
-	glog.Infof("  Freenas address: https://%s:%d\n", *host, *port)
+	glog.Infof("  Freenas address: %s://%s:%d\n", *protocol, *host, *port)
 	glog.Infof("  Insecure: %t\n", *insecure)
 	glog.Infof("  pool: %s\n", filepath.Join(*mountpoint, *pool))
 	glog.Infof("  parentDataset: %s\n", *parentDataset)
@@ -152,6 +165,7 @@ func execute() {
 		*parentDataset,
 		*identifier,
 		freenas.NewFreenasServer(
+			*protocol,
 			*host, *port,
 			*username, *password,
 			*insecure,

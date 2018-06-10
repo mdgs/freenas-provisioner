@@ -3,8 +3,9 @@ package freenas
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/dghubble/sling"
 	"net/http"
+
+	"github.com/dghubble/sling"
 )
 
 type FreenasResource interface {
@@ -15,15 +16,17 @@ type FreenasResource interface {
 }
 
 type FreenasServer struct {
+	Protocol                 string
 	Host, Username, Password string
 	Port                     int
 	InsecureSkipVerify       bool
 	url                      string
 }
 
-func NewFreenasServer(host string, port int, username, password string, insecure bool) *FreenasServer {
-	u := fmt.Sprintf("https://%s:%d", host, port)
+func NewFreenasServer(protocol string, host string, port int, username, password string, insecure bool) *FreenasServer {
+	u := fmt.Sprintf("%s://%s:%d", protocol, host, port)
 	return &FreenasServer{
+		Protocol:           protocol,
 		Host:               host,
 		Port:               port,
 		Username:           username,
@@ -34,9 +37,15 @@ func NewFreenasServer(host string, port int, username, password string, insecure
 }
 
 func (s *FreenasServer) getSlingConnection() *sling.Sling {
+
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: s.InsecureSkipVerify},
 	}
+
+	if s.Protocol == "http" {
+		tr.TLSClientConfig = nil
+	}
+
 	httpClient := &http.Client{Transport: tr}
 	return sling.New().Client(httpClient).Base(s.url).SetBasicAuth(s.Username, s.Password)
 }

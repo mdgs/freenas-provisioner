@@ -3,15 +3,17 @@ package freenas
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 	"io/ioutil"
 	"path/filepath"
+
+	"github.com/golang/glog"
 )
 
 var (
 	_ FreenasResource = &Dataset{}
 )
 
+// Dataset is a representation of freenas dataset
 type Dataset struct {
 	Avail      int64  `json:"avail,omitempty"`
 	Mountpoint string `json:"mountpoint,omitempty"`
@@ -19,12 +21,14 @@ type Dataset struct {
 	Pool       string `json:"pool"`
 	Refer      int64  `json:"refer,omitempty"`
 	Used       int64  `json:"used,omitempty"`
+	Comments   string `json:"comments,omitempty"`
 }
 
 func (d *Dataset) String() string {
 	return filepath.Join(d.Pool, d.Name)
 }
 
+// CopyFrom duplicate freenas dataset resource
 func (d *Dataset) CopyFrom(source FreenasResource) error {
 	src, ok := source.(*Dataset)
 	if ok {
@@ -39,6 +43,7 @@ func (d *Dataset) CopyFrom(source FreenasResource) error {
 	return errors.New("Cannot copy, src is not a Dataset")
 }
 
+// Get list all the freenas dataset
 func (d *Dataset) Get(server *FreenasServer) error {
 	// Getting all datasets (default is 20)
 	endpoint := fmt.Sprintf("/api/v1.0/storage/volume/%s/datasets/?limit=1000", d.Pool)
@@ -62,7 +67,12 @@ func (d *Dataset) Get(server *FreenasServer) error {
 }
 
 func (d *Dataset) Create(server *FreenasServer) error {
-	endpoint := fmt.Sprintf("/api/v1.0/storage/volume/%s/datasets/", d.Pool)
+	parent, dsName := filepath.Split(d.Name)
+	endpoint := filepath.Join("/api/v1.0/storage/dataset/", d.Pool, parent) + "/"
+
+	d.Name = dsName
+
+	//glog.Infof("POST endpoint %s, %+v", endpoint, *d)
 
 	resp, err := server.getSlingConnection().Post(endpoint).BodyJSON(d).Receive(nil, nil)
 	if err != nil {

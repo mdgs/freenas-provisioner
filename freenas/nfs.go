@@ -3,8 +3,9 @@ package freenas
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 	"io/ioutil"
+
+	"github.com/golang/glog"
 )
 
 var (
@@ -24,6 +25,7 @@ type NfsShare struct {
 	Paths        []string `json:"nfs_paths"`
 	Quiet        bool     `json:"nfs_quiet,omitempty"`
 	ReadOnly     bool     `json:"nfs_ro,omitempty"`
+	Security     []string `json:"nfs_security,omitempty"`
 }
 
 func (n *NfsShare) CopyFrom(source FreenasResource) error {
@@ -79,6 +81,9 @@ func (s *NfsShare) contains(path string) bool {
 
 func (n *NfsShare) Create(server *FreenasServer) error {
 	endpoint := "/api/v1.0/sharing/nfs/"
+
+	//glog.Infof("POST endpoint %s, %+v", endpoint, *n)
+
 	resp, err := server.getSlingConnection().Post(endpoint).BodyJSON(n).Receive(nil, nil)
 	if err != nil {
 		glog.Warningln(err)
