@@ -104,7 +104,7 @@ func (p *freenasProvisioner) Delete(volume *v1.PersistentVolume) error {
 	path := volume.Spec.PersistentVolumeSource.NFS.Path
 	pvName := filepath.Base(path)
 
-	glog.Infof("Volume: %+v\n", volume)
+	// glog.Infof("Volume: %+v\n", volume)
 
 	share := freenas.NfsShare{
 		Paths: []string{path},
